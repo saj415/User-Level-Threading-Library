@@ -1,0 +1,75 @@
+Advanced Operating Systems
+Project #1: User-Level Threading Library 
+ 
+ 
+Project Goals:
+ 
+  - Understand the mechanisms behind threading implementations
+  - Extend a programming environment with a feature not present in most languages
+  - Encounter and resolve issues related to concurrency and scheduling
+ 
+Project Details:
+ 
+  The goal of this project is to implement a user-level thread library in Linux.  A good starting point is to read the documentation of POSIX threads (pthreads).  I am also providing some code that can be used as a reference for how to handle certain low-level issues.
+ 
+  Implement the following functions to create a bare-bones user-level thread library:
+ 
+    int uthread_create(thread_id* t, void* (*start)(void*), void* args)
+      Creates a new thread that will begin executing the function indicated by the 'start' parameter, using arguments as specified by 'args'.  The first parameter will be updated to hold the id of the thread that was created. A return value of 0 indicates success, and -1 indicates failure.
+ 
+    int uthread_join(thread_id t, void** status)
+      Waits for the thread with thread_id of t to call uthread_exit.  If the thread has already exited, then uthread_join should not block.  If called twice for the same value of t, one call should have a return value indicating error, and the other a return value indicating success (e.g., the value 0 on success, and -1 on failure)
+ 
+    void uthread_exit(void* val_ptr)
+      When a thread calls uthread_exit(), it should terminate, in a manner that is compatible with the uthread_join() call.  Furthermore, the val_ptr value should be made available to a thread calling uthread_join.
+ 
+      An implicit call to uthread_exit should be made if a thread returns from its start routine.  In that case, the function's val_ptr should indicate the return value of the start routine.
+ 
+    int uthread_self()
+      When called from a thread T, this function returns an integer that uniquely identifies this thread.  The thread number zero should be reserved for the main program thread.
+ 
+    void uthread_yield()
+      When called from a thread T, this function indicates to the scheduler that T may be de-scheduled, so that another thread may be scheduled.  If there is no other available thread, then T will continue running. Otherwise, the implementation *must* switch to another thread.
+ 
+  There are some important considerations:
+  
+    Can your library support a function creating a thread, and then running concurrently with that thread?
+ 
+    Do you correctly handle return values from threads that exit?  If a thread fails to call thread_exit(), do you handle the case correctly?
+ 
+    Does your program schedule threads in an acceptable manner (e.g, round-robin scheduling)?
+ 
+    A good way to think about this is "if I used my uthreads package instead of pthreads, would a program still work?".  You might even want to use compile-time build flags and macros to enable your test programs to work with both pthreads and your uthreads package.
+      
+  A support for preemption.  Learn how the various timer and alarm signals in Unix work, and choose an appropriate repeatable timer.  Use that timer to preempt threads and hand control to other threads.  This should not affect the API for your program at all.
+ 
+  Add support for locks and condition variables.  Your solution should not rely solely on spinning, but instead should de-schedule a thread when it is unable to make progress due to an unavailable resource.  The interface should be the same as in the pthread library.  You'll probably need to read some pthread documentation before implementing these functions:
+ 
+    int uthread_mutex_lock(uthread_mutex_t *mutex)
+      Acquires the lock.  Note that you can define uthread_mutex_t however you see fit, but be careful to take int account part 4 when thinking about part 3.  __sync_bool_compare_and_swap() might be useful, and/or
+      __sync_lock_test_and_set().
+      
+    int uthread_mutex_trylock(uthread_mutex_t *mutex)
+      Attempt to acquire the lock, and return a status indicating success or failure.
+      
+    int uthread_mutex_unlock(uthread_mutex_t *mutex)
+      Release the lock.  You probably want your lock to be reentrant.
+      
+    uthread_mutex_t mutex = UTHREAD_MUTEX_INITIALIZER
+      Declare and initialize locks like this.  You don't need to worry about destroying locks.
+ 
+    int pthread_cond_signal (pthread_cond_t* cond)
+      Unblock a thread waiting on the condition variable, if one exists.
+      
+    int pthread_cond_broadcast (pthread_cond_t* cond)
+      Unblock all threads waiting on the condition variable.
+      
+    int pthread_cond_wait (pthread_cond_t* cond, pthread_mutex_t* mutex)
+      Unlock the given mutex and put the calling thread into a blocked state.
+      When the associated condition variable is signalled, this function re-locks this mutex and returns to the caller.
+ 
+    uthread_cond_t cvar = UTHREAD_COND_INITIALIZER
+      Declare and initialize condition variables like this.  You don't need to worry about destroying condition variables.
+      
+  Extend your library to support multiple kernel-level threads (pthreads) that execute different uthreads simultaneously.
+ 
